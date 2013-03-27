@@ -1106,6 +1106,12 @@ science.stats.kernel = {
     return 0;
   },
   gaussian: function(u) {
+      
+      var sigma = science.stats.arraymap(u,function(d){ return d*d;});
+   
+    return 1 / Math.sqrt(2 * Math.PI) * Math.exp(-.5 * sigma);
+  },
+  gaussian2D: function(u,v) {
     return 1 / Math.sqrt(2 * Math.PI) * Math.exp(-.5 * u * u);
   },
   cosine: function(u) {
@@ -1152,6 +1158,47 @@ science.stats.kde = function() {
 
   return kde;
 };
+science.stats.max = function (x) {
+    
+    if (typeof x[0] === 'number') {
+        
+        return d3.max(x);
+        
+    } else if ()
+}
+science.stats.kde2D = function( XData, YData, ZData, XCoord, YCoord, XBandwidth, YBandwidth) {
+      
+    var kernel = science.stats.kernel.gaussian;
+    var points=[];
+    var i,j;
+    
+    for (i=0; i<YCoord.length; i++) {
+        
+        var xPoints=[];
+        
+        for (j=0; j<XCoord.length; j++) {
+            
+            var k;
+            
+            var acc=0;
+            
+            for (k=0;k<XData.length;k++) {
+                
+                acc += ZData[k] * kernel([(XCoord[j]-XData[k])/XBandwidth, (YCoord[i]-YData[k])/YBandwidth] );
+                
+            }
+            
+            
+            xPoints.push(acc);
+            
+        }
+        
+        points.push(xPoints);
+    };
+    return points;
+  }
+
+  
 // Based on figue implementation by Jean-Yves Delort.
 // http://code.google.com/p/figue/
 science.stats.kmeans = function() {
@@ -1617,14 +1664,87 @@ function science_stats_loessNextNonzero(weights, i) {
   return j;
 }
 // Welford's algorithm.
+// Added a support for n-dimentional matrix of arbitrary length
 science.stats.mean = function(x) {
-  var n = x.length;
-  if (n === 0) return NaN;
-  var m = 0,
-      i = -1;
-  while (++i < n) m += (x[i] - m) / (i + 1);
-  return m;
-};
+  
+  var n = science.stats.countmember(x); 
+  var sum = science.stats.sum(x); 
+  
+  if (n === 0) {
+    
+    alert ("Error in Science.stats.mean:  Null object don't have mean.");
+    return NaN;
+    
+      
+  } else {
+      
+      return sum/n;
+  }
+  
+}
+
+science.stats.sqrmean = function(x) {
+  
+  var n = science.stats.countmember(x); 
+  var sqrsum = science.stats.arraymap(x, function(d) {return d*d;}) ; 
+  
+  if (n === 0) {
+    
+    alert ("Error in Science.stats.sqrmean:  Null object don't have sqrmean.");
+    return NaN;
+    
+      
+  } else {
+      
+      return sqrsum/n;
+  }
+  
+}
+
+science.stats.arraymap = function (x, mapfunction) {
+    
+    if (typeof x === 'number') {
+        
+        return mapfunction(x);
+        
+    } else if (Object.prototype.toString.call(x) === '[object Array]') {
+        
+        var i = -1;
+        var m = 0;
+        var n = x.length
+        
+        while (++i < n) {
+            
+            m += science.stats.arraymap(x[i],mapfunction);
+            
+        }
+        
+        return m;
+        
+    } else {
+        
+        alert ("Error in Science.stats.arraymap: Only array of number is supported.");
+        return 0;
+    }
+    
+}
+
+science.stats.countmember = function(x) {
+        
+    return science.stats.arraymap(x, function(d) { return 1;});
+    
+}
+
+science.stats.sum = function(x) {
+    
+    
+    return science.stats.arraymap(x, function(d){ return d;});
+    
+}
+
+ 
+
+
 science.stats.median = function(x) {
   return science.stats.quantiles(x, [.5])[0];
 };
@@ -1662,21 +1782,23 @@ science.stats.quantiles = function(d, quantiles) {
     return h === 0 ? a : a + h * (d[lo] - a);
   });
 };
+
 // Unbiased estimate of a sample's variance.
 // Also known as the sample variance, where the denominator is n - 1.
+// Support for multidimensional matrixs.
+
 science.stats.variance = function(x) {
-  var n = x.length;
+  var n = science.stats.countmember(x);
   if (n < 1) return NaN;
   if (n === 1) return 0;
-  var mean = science.stats.mean(x),
-      i = -1,
-      s = 0;
-  while (++i < n) {
-    var v = x[i] - mean;
-    s += v * v;
-  }
-  return s / (n - 1);
+  var mean = science.stats.mean(x);
+  
+  var sqrmean = science.stats.arraymap(x, function(d) { return (d-mean)*(d-mean);});
+  
+  return sqrmean/(n-1);
+  
 };
+
 science.stats.distribution = {
 };
 // From http://www.colingodsey.com/javascript-gaussian-random-number-generator/
